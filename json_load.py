@@ -41,11 +41,11 @@ def json_load_games_info(games_df):
         
         if games_df['games'][i]==0:
             info_dict['has_game'].append(0)
-            info_dict['draw_team_id'].append(0)
-            info_dict['win_team_id'].append(0)
-            info_dict['loss_team_id'].append(0)
-            info_dict['home_loss_id'].append(0)
-            info_dict['away_win_id'].append(0)
+            info_dict['draw_team_id'].append([])
+            info_dict['win_team_id'].append([])
+            info_dict['loss_team_id'].append([])
+            info_dict['home_loss_id'].append([])
+            info_dict['away_win_id'].append([])
         else:
             games_info=json.loads(games_df['games'][i])
             info_dict['has_game'].append(1)
@@ -259,7 +259,7 @@ def json_load_sd_info(sd_df):
                 sd_dict['leagueRank'].append(sd_day[_]['leagueRank'])
                 sd_dict['pct'].append(sd_day[_]['pct'])
                 sd_dict['runsAllowed'].append(sd_day[_]['runsAllowed'])
-                sd_dict['runsScored'].append(sd_day[_]['runsScored'])
+                #sd_dict['runsScored'].append(sd_day[_]['runsScored'])
                 homepct=0.0 if sd_day[_]['homeWins']+sd_day[_]['homeLosses']==0 else sd_day[_]['homeWins']/(sd_day[_]['homeWins']+sd_day[_]['homeLosses'])
                 sd_dict['homepct'].append(homepct)
                 awaypct=0.0 if sd_day[_]['awayWins']+sd_day[_]['awayLosses']==0 else sd_day[_]['awayWins']/(sd_day[_]['awayWins']+sd_day[_]['awayLosses'])
