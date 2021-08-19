@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from collections import defaultdict
 
 def feat_combination(tar_out,rosters_out,games_out,sd_out,pbs_out,tbs_out):
     #merge the rosters
@@ -89,9 +90,20 @@ def feat_build(tar_out,rosters_out,games_out,sd_out,pbs_out,tbs_out):
     df_combination.drop('away_win_id',axis=1,inplace=True)
     df_combination.drop('positionCode',axis=1,inplace=True)
 
+    df_combination.sort_values(['date'],inplace=True)
+    df_combination.reset_index(drop=True,inplace=True)
+
     return df_combination
+
+def tar_feat_split(df):
+    tar_feat_dict=defaultdict(dict)
+    for i in tqdm(range(df.shape[0])):
+        tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['targets']=[df.iloc[i,j] for t in range(1,5)]
+        tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['features']=[df.iloc[i,j] for j in range(6,114)]
+    
+    return tar_feat_dict
+
     
 
-if __name__=='__main__':
-    pass
+
 
