@@ -9,18 +9,15 @@ from data_process import feat_build,tar_feat_split
 import torch
 import torch.nn as nn
 from torch import optim
-from torch.utils.data import Dataset,DataLoader
+from torch.utils.data import DataLoader
 from model.ANN.ann import mlp_model
 from model.ANN.dataset import mlb_dataset
-from train import train_ann,eval_ann
+from train import train_ann,val_ann
 from predict import pred_ann
 
-
-def main(use_ann=True,train_size,val_size):
-    
-    ##########DATA PROCESS!############
+def raw_data_process(path):
     # load raw data
-    raw_data=pd.read_csv('./data/train_updated.csv')
+    raw_data=pd.read_csv(path)
     # fill na with 0 for some cols
     raw_data.games=raw_data.games.fillna(0)
     raw_data.playerBoxScores=raw_data.playerBoxScores.fillna(0)
@@ -44,6 +41,9 @@ def main(use_ann=True,train_size,val_size):
     # combine them together
     final_df=feat_build(targets_df,rosters_df,games_df,sd_df,pbs_df,tbs_df)
 
+    return final_df
+
+def train_val_test_split(df,train_size,val_size):
     # split the target and feature
     tar_feat_dict=tar_feat_split(final_df)
     
@@ -63,6 +63,55 @@ def main(use_ann=True,train_size,val_size):
             test_x.append(v['features'])
             test_y.append(v['targets'])
     
+    train_x,train_y=torch.Tensor(train_x),torch.Tensor(train_y)
+    val_x,val_y=torch.Tensor(val_x),torch.Tensor(val_y)
+    test_x,test_y=torch.Tensor(test_x),torch.Tensor(test_y)
+
+    train_data=mlb_dataset(train_y,train_x)
+    val_data=mlb_dataset(val_y,val_x)
+    test_data=mlb_dataset(test_y,test_x)
+
+    train_data_loader=DataLoader(train_data,batch_size=128,shuffle=True)
+    val_data_loader=DataLoader(val_data,batch_size=128,shuffle=False)
+    test_data_loader=DataLoader(test_data,batch_size=1,shuffle=False)
+
+    return train_data_loader,val_data_loader,test_data_loader
+
+
+def Main(use_ann=True,raw_path,train_size,val_size):
+
+    df=raw_data_process(raw_path)
     
+    if use_ann:
+        train_data_loader,val_data_loader,test_data_loader=train_val_test_split(df,train_size,val_size)
+        # load model
+        model=mlp_model
+        # metric
+        metric=nn.MSELoss()
+        # epoch
+        epochs=30
+        # learning rate
+        lr=1e-2
+        # device
+        device=torch.device('cpu')
+        # train the model
+        train_ann(model,metric,train_data_loader,val_data_loader,epochs,lr,device)
+
+        # use the saved model to make prediction for test set
+        best_model=model.load_state_dict(torch.load('./train_out/bm.ckpt'))
+        # check the performance of bm on test set
+        test_loss=pred_ann(best_model,metric,test_data_loader,device)
+
+if __name__=='__main__':
+    Main(use_ann=True,raw_path='./data/train_updated.csv',train_size=15000,val_size=3000)
+
+
+
+
+    
+    
+    
+
+
 
 
