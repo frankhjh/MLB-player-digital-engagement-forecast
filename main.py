@@ -8,6 +8,7 @@ from json_load import *
 from data_process import feat_build,tar_feat_split
 import torch
 import torch.nn as nn
+from torch.nn.functional import relu
 from torch import optim
 from torch.utils.data import DataLoader
 from model.ANN.ann import mlp_model
@@ -45,8 +46,8 @@ def raw_data_process(path):
 
 def train_val_test_split(df,train_size,val_size):
     # split the target and feature
-    tar_feat_dict=tar_feat_split(final_df)
-    
+    tar_feat_dict=tar_feat_split(df)
+    print('target/feature split done!')
     # train/val/test split
     train_x,train_y=[],[]
     val_x,val_y=[],[]
@@ -62,30 +63,30 @@ def train_val_test_split(df,train_size,val_size):
         else:
             test_x.append(v['features'])
             test_y.append(v['targets'])
-    
+    print('train/val/test split done!')
     train_x,train_y=torch.Tensor(train_x),torch.Tensor(train_y)
     val_x,val_y=torch.Tensor(val_x),torch.Tensor(val_y)
     test_x,test_y=torch.Tensor(test_x),torch.Tensor(test_y)
 
-    train_data=mlb_dataset(train_y,train_x)
-    val_data=mlb_dataset(val_y,val_x)
-    test_data=mlb_dataset(test_y,test_x)
+    train_data=mlb_dataset(train_x,train_y)
+    val_data=mlb_dataset(val_x,val_y)
+    test_data=mlb_dataset(test_x,test_y)
 
     train_data_loader=DataLoader(train_data,batch_size=128,shuffle=True)
     val_data_loader=DataLoader(val_data,batch_size=128,shuffle=False)
-    test_data_loader=DataLoader(test_data,batch_size=1,shuffle=False)
+    test_data_loader=DataLoader(test_data,batch_size=64,shuffle=False)
 
     return train_data_loader,val_data_loader,test_data_loader
 
 
-def Main(use_ann=True,raw_path,train_size,val_size):
+def Main(raw_path,train_size,val_size,use_ann=True):
 
     df=raw_data_process(raw_path)
-    
+    print('raw data process done!')
     if use_ann:
         train_data_loader,val_data_loader,test_data_loader=train_val_test_split(df,train_size,val_size)
         # load model
-        model=mlp_model
+        model=mlp_model(input_dim=108,hidden_dim=64,output_dim=4)
         # metric
         metric=nn.MSELoss()
         # epoch
@@ -95,15 +96,18 @@ def Main(use_ann=True,raw_path,train_size,val_size):
         # device
         device=torch.device('cpu')
         # train the model
+        print('start training...')
         train_ann(model,metric,train_data_loader,val_data_loader,epochs,lr,device)
 
         # use the saved model to make prediction for test set
-        best_model=model.load_state_dict(torch.load('./train_out/bm.ckpt'))
+        model.load_state_dict(torch.load('./train_out/bm.ckpt'))
         # check the performance of bm on test set
-        test_loss=pred_ann(best_model,metric,test_data_loader,device)
+        print('start predicting...')
+        test_loss=pred_ann(model,metric,test_data_loader,device)
+        print(f'test loss:{test_loss}')
 
 if __name__=='__main__':
-    Main(use_ann=True,raw_path='./data/train_updated.csv',train_size=15000,val_size=3000)
+    Main(raw_path='./data/train_updated.csv',train_size=15000,val_size=3000,use_ann=True)
 
 
 

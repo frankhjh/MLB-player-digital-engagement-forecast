@@ -90,8 +90,6 @@ def json_load_roster_info(rosters_df):
 
             sub_output=pd.DataFrame(info_dict_day)
             output=output.append(sub_output)
-        else:
-            print(f'The {i}th day has exception!')
    
     return output.reset_index(drop=True)
 

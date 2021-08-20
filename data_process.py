@@ -98,8 +98,8 @@ def feat_build(tar_out,rosters_out,games_out,sd_out,pbs_out,tbs_out):
 def tar_feat_split(df):
     tar_feat_dict=defaultdict(dict)
     for i in tqdm(range(df.shape[0])):
-        tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['targets']=[df.iloc[i,j] for t in range(1,5)]
-        tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['features']=[df.iloc[i,j] for j in range(6,114)]
+        tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['targets']=[float(df.iloc[i,j]) for j in range(1,5)]
+        tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['features']=[float(df.iloc[i,j]) for j in range(6,114)]
     
     return tar_feat_dict
 

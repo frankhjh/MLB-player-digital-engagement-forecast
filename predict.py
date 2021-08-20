@@ -10,3 +10,4 @@ def pred_ann(model,metric,test_dataloader,device):
             loss=metric(output,y)
             test_loss+=loss.item()
     return test_loss/(step+1)
+
