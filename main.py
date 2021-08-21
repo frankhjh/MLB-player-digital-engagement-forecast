@@ -4,15 +4,16 @@ import numpy as np
 from collections import defaultdict
 from tqdm import tqdm
 import json
+from sklearn.preprocessing import MinMaxScaler
 from json_load import *
-from data_process import feat_build,tar_feat_split
+from data_process import feat_build,tar_feat_split,normalization
 import torch
 import torch.nn as nn
 from torch.nn.functional import relu
 from torch import optim
 from torch.utils.data import DataLoader
-from model.ANN.ann import mlp_model
-from model.ANN.dataset import mlb_dataset
+from model.ann import mlp_model
+from utils.dataset import mlb_dataset
 from train import train_ann,val_ann
 from predict import pred_ann
 
@@ -47,36 +48,27 @@ def raw_data_process(path):
 def train_val_test_split(df,train_size,val_size):
     # split the target and feature
     tar_feat_dict=tar_feat_split(df)
+
+    x,y=[],[]
+    for k,v in tar_feat_dict.items():
+        x.append(v['features'])
+        y.append(v['targets'])
     print('target/feature split done!')
+
+    # do the normalization for feature sets
+    x=normalization(x)
+    print('normalization done!')
+
     # train/val/test split
-    train_x,train_y=[],[]
-    val_x,val_y=[],[]
-    test_x,test_y=[],[]
-    
-    for i,(k,v) in enumerate(tar_feat_dict.items()):
-        if i<train_size:
-            train_x.append(v['features'])
-            train_y.append(v['targets'])
-        elif i>=train_size and i<train_size+val_size:
-            val_x.append(v['features'])
-            val_y.append(v['targets'])
-        else:
-            test_x.append(v['features'])
-            test_y.append(v['targets'])
+    train_x=x[:train_size]
+    train_y=y[:train_size]
+    val_x=x[train_size:train_size+val_size]
+    val_y=y[train_size:train_size+val_size]
+    test_x=x[train_size+val_size:]
+    test_y=y[train_size+val_size:]
     print('train/val/test split done!')
-    train_x,train_y=torch.Tensor(train_x),torch.Tensor(train_y)
-    val_x,val_y=torch.Tensor(val_x),torch.Tensor(val_y)
-    test_x,test_y=torch.Tensor(test_x),torch.Tensor(test_y)
-
-    train_data=mlb_dataset(train_x,train_y)
-    val_data=mlb_dataset(val_x,val_y)
-    test_data=mlb_dataset(test_x,test_y)
-
-    train_data_loader=DataLoader(train_data,batch_size=128,shuffle=True)
-    val_data_loader=DataLoader(val_data,batch_size=128,shuffle=False)
-    test_data_loader=DataLoader(test_data,batch_size=64,shuffle=False)
-
-    return train_data_loader,val_data_loader,test_data_loader
+    
+    return train_x,train_y,val_x,val_y,test_x,test_y
 
 
 def Main(raw_path,train_size,val_size,use_ann=True):
@@ -84,9 +76,22 @@ def Main(raw_path,train_size,val_size,use_ann=True):
     df=raw_data_process(raw_path)
     print('raw data process done!')
     if use_ann:
-        train_data_loader,val_data_loader,test_data_loader=train_val_test_split(df,train_size,val_size)
+        train_x,train_y,val_x,val_y,test_x,test_y=train_val_test_split(df,train_size,val_size)
+        
+        train_x,train_y=torch.Tensor(train_x),torch.Tensor(train_y)
+        val_x,val_y=torch.Tensor(val_x),torch.Tensor(val_y)
+        test_x,test_y=torch.Tensor(test_x),torch.Tensor(test_y)
+
+        train_data=mlb_dataset(train_x,train_y)
+        val_data=mlb_dataset(val_x,val_y)
+        test_data=mlb_dataset(test_x,test_y)
+
+        train_data_loader=DataLoader(train_data,batch_size=128,shuffle=True)
+        val_data_loader=DataLoader(val_data,batch_size=128,shuffle=False)
+        test_data_loader=DataLoader(test_data,batch_size=64,shuffle=False)
         # load model
-        model=mlp_model(input_dim=108,hidden_dim=64,output_dim=4)
+        input_dim=train_x.size(1)
+        model=mlp_model(input_dim=input_dim,hidden_dim=64,output_dim=4)
         # metric
         metric=nn.MSELoss()
         # epoch

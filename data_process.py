@@ -3,7 +3,9 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from collections import defaultdict
+from sklearn.preprocessing import MinMaxScaler
 
+# combination all information contained in json together
 def feat_combination(tar_out,rosters_out,games_out,sd_out,pbs_out,tbs_out):
     #merge the rosters
     meg_rosters=pd.merge(tar_out,rosters_out,on=['date','playerId'])
@@ -38,6 +40,7 @@ def feat_combination(tar_out,rosters_out,games_out,sd_out,pbs_out,tbs_out):
 
     return meg_tbs
 
+# create features
 def feat_build(tar_out,rosters_out,games_out,sd_out,pbs_out,tbs_out):
     df_combination=feat_combination(tar_out,rosters_out,games_out,sd_out,pbs_out,tbs_out)
     df_combination=df_combination.reset_index(drop=True)
@@ -93,13 +96,27 @@ def feat_build(tar_out,rosters_out,games_out,sd_out,pbs_out,tbs_out):
     df_combination.sort_values(['date'],inplace=True)
     df_combination.reset_index(drop=True,inplace=True)
 
+    # drop the numerical features with low variance(index before 66)
+    nfeats=df_combination.columns[6:66]
+    for f in nfeats:
+        if df_combination[df_combination[f]==0].shape[0]/df_combination.shape[0]>0.95:
+            df_combination.drop(f,axis=1,inplace=True)
+    
     return df_combination
 
+# do the normalization for features
+def normalization(x): # x should be in form of [[...],[...],[...]], that is list of lists
+    scaler=MinMaxScaler()
+    return scaler.fit_transform(x)
+
+# separate the target and features
 def tar_feat_split(df):
     tar_feat_dict=defaultdict(dict)
+
+    max_idx=df.shape[1]
     for i in tqdm(range(df.shape[0])):
         tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['targets']=[float(df.iloc[i,j]) for j in range(1,5)]
-        tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['features']=[float(df.iloc[i,j]) for j in range(6,114)]
+        tar_feat_dict[str(df.playerId[i])+'-'+str(df.date[i])[:10]]['features']=[float(df.iloc[i,j]) for j in range(6,max_idx)]
     
     return tar_feat_dict
 
