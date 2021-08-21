@@ -13,7 +13,10 @@ from torch.nn.functional import relu
 from torch import optim
 from torch.utils.data import DataLoader
 from model.ann import mlp_model
+from model.xgb import xgb_model
 from utils.dataset import mlb_dataset
+from utils.mse_loss import mse
+from utils.target_split import tar_split
 from train import train_ann,val_ann
 from predict import pred_ann
 
@@ -42,7 +45,7 @@ def raw_data_process(path):
     sd_df=json_load_sd_info(raw_data[['date','standings']])
     # combine them together
     final_df=feat_build(targets_df,rosters_df,games_df,sd_df,pbs_df,tbs_df)
-
+    print('raw data process done!')
     return final_df
 
 def train_val_test_split(df,train_size,val_size):
@@ -71,13 +74,13 @@ def train_val_test_split(df,train_size,val_size):
     return train_x,train_y,val_x,val_y,test_x,test_y
 
 
-def Main(raw_path,train_size,val_size,use_ann=True):
-
-    df=raw_data_process(raw_path)
-    print('raw data process done!')
-    if use_ann:
-        train_x,train_y,val_x,val_y,test_x,test_y=train_val_test_split(df,train_size,val_size)
-        
+def Main(raw_path,train_size,val_size,model):
+    # process raw data
+    df=raw_data_process(raw_path) 
+    # split train/val/test data
+    train_x,train_y,val_x,val_y,test_x,test_y=train_val_test_split(df,train_size,val_size)
+    
+    if model=='ann':
         train_x,train_y=torch.Tensor(train_x),torch.Tensor(train_y)
         val_x,val_y=torch.Tensor(val_x),torch.Tensor(val_y)
         test_x,test_y=torch.Tensor(test_x),torch.Tensor(test_y)
@@ -110,9 +113,25 @@ def Main(raw_path,train_size,val_size,use_ann=True):
         print('start predicting...')
         test_loss=pred_ann(model,metric,test_data_loader,device)
         print(f'test loss:{test_loss}')
+    
+    if model=='xgboost':
+        test_loss=0.0
+        for idx in tqdm(range(4)): # we have 4 targets
+            train_y=tar_split(train_y,idx)
+            test_y=tar_split(test_y,idx)
+            print(f'{idx+1}th model start training...')
+            xgb_model.fit(train_x,train_y)
+            print('train done!')
+            pred=xgb_model.predict(test_x)
+            
+            single_mse_loss=mse(pred,test_y)
+            test_loss+=0.25*single_mse_loss
+        print(f'test loss:{test_loss}')
+
+
 
 if __name__=='__main__':
-    Main(raw_path='./data/train_updated.csv',train_size=15000,val_size=3000,use_ann=True)
+    Main(raw_path='./data/train_updated.csv',train_size=150000,val_size=30000,model='xgboost')
 
 
 
