@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import pandas as pd
 import numpy as np
+import gc
 from collections import defaultdict
 from tqdm import tqdm
 import json
@@ -13,14 +14,22 @@ from torch.nn.functional import relu
 from torch import optim
 from torch.utils.data import DataLoader
 from model.ann import mlp_model
-from model.xgb import xgb_model
+from model.GBDT import gbdt
 from utils.dataset import mlb_dataset
 from utils.mse_loss import mse
 from utils.target_split import tar_split
 from train import train_ann,val_ann
 from predict import pred_ann
 
-def raw_data_process(path):
+
+if __name__=='__main__':
+    ######### parameters ############
+    path='./data/train_updated.csv'
+    train_size=150000
+    val_size=30000
+    model='gbdt'
+    ################################
+    
     # load raw data
     raw_data=pd.read_csv(path)
     # fill na with 0 for some cols
@@ -46,11 +55,15 @@ def raw_data_process(path):
     # combine them together
     final_df=feat_build(targets_df,rosters_df,games_df,sd_df,pbs_df,tbs_df)
     print('raw data process done!')
-    return final_df
+    
+    del raw_data,targets_df,rosters_df,games_df,sd_df,pbs_df,tbs_df
+    gc.collect()
+ 
 
-def train_val_test_split(df,train_size,val_size):
-    # split the target and feature
-    tar_feat_dict=tar_feat_split(df)
+    #split target and features
+    tar_feat_dict=tar_feat_split(final_df)
+    del final_df
+    gc.collect()
 
     x,y=[],[]
     for k,v in tar_feat_dict.items():
@@ -58,6 +71,9 @@ def train_val_test_split(df,train_size,val_size):
         y.append(v['targets'])
     print('target/feature split done!')
 
+    del tar_feat_dict
+    gc.collect()
+    
     # do the normalization for feature sets
     x=normalization(x)
     print('normalization done!')
@@ -71,15 +87,7 @@ def train_val_test_split(df,train_size,val_size):
     test_y=y[train_size+val_size:]
     print('train/val/test split done!')
     
-    return train_x,train_y,val_x,val_y,test_x,test_y
-
-
-def Main(raw_path,train_size,val_size,model):
-    # process raw data
-    df=raw_data_process(raw_path) 
-    # split train/val/test data
-    train_x,train_y,val_x,val_y,test_x,test_y=train_val_test_split(df,train_size,val_size)
-    
+    ########## modeling #################
     if model=='ann':
         train_x,train_y=torch.Tensor(train_x),torch.Tensor(train_y)
         val_x,val_y=torch.Tensor(val_x),torch.Tensor(val_y)
@@ -113,25 +121,28 @@ def Main(raw_path,train_size,val_size,model):
         print('start predicting...')
         test_loss=pred_ann(model,metric,test_data_loader,device)
         print(f'test loss:{test_loss}')
-    
-    if model=='xgboost':
+
+    if model=='gbdt':
         test_loss=0.0
         for idx in tqdm(range(4)): # we have 4 targets
-            train_y=tar_split(train_y,idx)
-            test_y=tar_split(test_y,idx)
-            print(f'{idx+1}th model start training...')
-            xgb_model.fit(train_x,train_y)
-            print('train done!')
-            pred=xgb_model.predict(test_x)
+
+            train_x_arr=np.array(train_x)
+            train_y_arr=np.array(tar_split(train_y,idx))
+
+            test_x_arr=np.array(test_x)
+            test_y_arr=np.array(tar_split(test_y,idx))
             
-            single_mse_loss=mse(pred,test_y)
+            print(f'{idx+1}th model start training...')
+            gbdt.fit(train_x_arr,train_y_arr)
+            print(f'{idx+1}th model training done!')
+            pred=gbdt.predict(test_x_arr)
+            
+            single_mse_loss=mse(pred,test_y_arr)
             test_loss+=0.25*single_mse_loss
         print(f'test loss:{test_loss}')
 
 
 
-if __name__=='__main__':
-    Main(raw_path='./data/train_updated.csv',train_size=150000,val_size=30000,model='xgboost')
 
 
 
