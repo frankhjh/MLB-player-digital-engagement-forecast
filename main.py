@@ -20,14 +20,21 @@ from utils.mse_loss import mse
 from utils.target_split import tar_split
 from train import train_ann,val_ann
 from predict import pred_ann
+import argparse
+parser=argparse.ArgumentParser(description='Parameters for the data prepare and model selection')
+parser.add_argument('--data_path',type=str)
+parser.add_argument('--train_size',type=int)
+parser.add_argument('--val_size',type=int)
+parser.add_argument('--model',type=str)
+args=parser.parse_args()
 
 
 if __name__=='__main__':
     ######### parameters ############
-    path='./data/train_updated.csv'
-    train_size=150000
-    val_size=30000
-    model='gbdt'
+    path=args.data_path
+    train_size=args.train_size
+    val_size=args.val_size
+    model=args.model
     ################################
     
     # load raw data
@@ -87,7 +94,7 @@ if __name__=='__main__':
     test_y=y[train_size+val_size:]
     print('train/val/test split done!')
     
-    ########## modeling #################
+    # modeling
     if model=='ann':
         train_x,train_y=torch.Tensor(train_x),torch.Tensor(train_y)
         val_x,val_y=torch.Tensor(val_x),torch.Tensor(val_y)
@@ -108,7 +115,7 @@ if __name__=='__main__':
         # epoch
         epochs=30
         # learning rate
-        lr=1e-2
+        lr=1e-3
         # device
         device=torch.device('cpu')
         # train the model
