@@ -29,7 +29,7 @@ For this task, I tried 2 different models, one is the simple neural network(MLP)
 you can run the code by enter the following command in terminal(change the parameters as you want,e.g. use **gbdt**)
 `python -W ignore main.py --data_path './data/train_updated.csv' --train_size 150000 --val_size 30000 --model 'ann'`
 
-In summary, this repository only shows you a basic soolution to this data challenge, there are still lots of things can be done to improve the performance, for example, better **feature engineering**, better model parameters setting using methods like **grid search** or **cross validation**. what's more, you can also try more complex models and some **ensemble learning** algorithms to get better performance.
+In summary, this repository only shows you a basic solution to this data challenge, there are still lots of things can be done to improve the performance, for example, better **feature engineering**, better model parameters setting using methods like **grid search** or **cross validation**. what's more, you can also try more complex models and some **ensemble learning** algorithms to get better performance.
 
 
 
